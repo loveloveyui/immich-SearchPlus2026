@@ -11,9 +11,7 @@ RUN --mount=type=cache,target=/root/.npm npm install
 ARG REBUILD_DATE=""
 
 COPY frontend/ ./
-# 核心联动：将 backend 目录作为缓存失效感知点
-# 一旦 backend/ 下的任何文件（如 main.go）发生变动，本层哈希改变，
-# Docker 会自动废弃下一行的构建缓存，强制执行 npm run build 刷新时间戳！
+# 核心联动：监听 backend 目录变动以自动刷新前端构建时间戳
 COPY backend/ ./backend_trigger/
 
 RUN npm run build
@@ -30,27 +28,32 @@ COPY backend/go.mod backend/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY backend/ ./
-# 先并入前端产物，再并入胶水脚本供 go:embed 静态打包
 COPY --from=frontend-builder /app/backend/dist ./dist
 COPY inject.js ./dist/inject.js
 
-# 自适应多架构构建 (支持 amd64, arm64 等)
-ARG TARGETOS
-ARG TARGETARCH
+# 接收目标系统与架构 (默认 linux / amd64)
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-    go build -trimpath -ldflags="-s -w" -o /app/immich-SearchPlus2026 .
+    # 自动识别系统：若为 windows 则补齐 .exe，其余系统保持空
+    EXT="" && [ "$TARGETOS" = "windows" ] && EXT=".exe"; \
+    BIN_NAME="immich-SearchPlus2026-${TARGETOS}-${TARGETARCH}${EXT}"; \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags="-s -w" -o "/app/${BIN_NAME}" . && \
+    # 生成无后缀标准副本，保障阶段 4 容器构建不受影响
+    cp "/app/${BIN_NAME}" /app/immich-SearchPlus2026
 
 # ==========================================
-# 阶段 3：二进制专用导出层 (专供提取到宿主机，避开软链接报错)
+# 阶段 3：二进制专用导出层 (专供提取到宿主机)
 # ==========================================
 FROM scratch AS export-stage
-COPY --from=backend-builder /app/immich-SearchPlus2026 /immich-SearchPlus2026
+# 自动匹配带架构与系统后缀的文件 (包括 .exe)
+COPY --from=backend-builder /app/immich-SearchPlus2026-* /
 
 # ==========================================
-# 阶段 4：最终运行镜像 (保留在最后，默认构建产物)
+# 阶段 4：最终运行镜像 (Compose 默认镜像，保持不变)
 # ==========================================
 FROM alpine:3.20 AS runner
 WORKDIR /app
@@ -58,7 +61,6 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates tzdata && \
     adduser -D -u 10001 appuser
 
-# 默认运行时区对齐东八区 (容器运行时仍可通过 Compose 的 TZ 覆盖)
 ENV TZ=Asia/Shanghai
 
 COPY --from=backend-builder /app/immich-SearchPlus2026 /app/immich-SearchPlus2026
