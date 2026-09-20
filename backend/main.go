@@ -81,7 +81,36 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func loadDotEnv() {
+	candidates := []string{".env", "../.env"}
+	for _, p := range candidates {
+		data, err := os.ReadFile(p)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(data), "\n") {
+			line = strings.TrimSpace(line)
+			line = strings.TrimRight(line, "\r")
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				k := strings.TrimSpace(parts[0])
+				v := strings.TrimSpace(parts[1])
+				v = strings.Trim(v, `"'`)
+				if os.Getenv(k) == "" {
+					os.Setenv(k, v)
+				}
+			}
+		}
+		log.Printf("[✓] 已自动载入本地配置文件: %s", p)
+		break
+	}
+}
+
 func initConfig() {
+	loadDotEnv()
 	cfg = Config{
 		MLPredictURL:    getEnv("IMMICH_ML_URL", "http://immich-machine-learning:3003/predict"),
 		ImmichServerURL: strings.TrimRight(getEnv("IMMICH_SERVER_URL", "http://immich-server:2283"), "/"),
@@ -244,6 +273,47 @@ func getPartnerOwnerIDs(ctx context.Context, userIDs []string) []string {
 	return pids
 }
 
+func validateConfig() error {
+	if strings.TrimSpace(cfg.DBPassword) == "" {
+		log.Printf("[!] 提示: IMMICH_DB_PASSWORD 为空，将尝试无密码模式连接数据库")
+	}
+	var portInt int
+	if _, err := fmt.Sscanf(cfg.DBPort, "%d", &portInt); err != nil || portInt <= 0 || portInt > 65535 {
+		return fmt.Errorf("IMMICH_DB_PORT 非法 (有效范围 1~65535): %s", cfg.DBPort)
+	}
+	for envName, rawURL := range map[string]string{
+		"IMMICH_SERVER_URL": cfg.ImmichServerURL,
+		"IMMICH_ML_URL":     cfg.MLPredictURL,
+	} {
+		u, err := url.Parse(rawURL)
+		if err != nil || u.Scheme == "" || u.Host == "" {
+			return fmt.Errorf("环境变量 %s 不是合法的 HTTP(S) URL: %s", envName, rawURL)
+		}
+	}
+	compareSecret := os.Getenv("IMMICH_COMPARE_API_KEY")
+	if compareSecret != "" {
+		log.Printf("[✓] 已配置 IMMICH_COMPARE_API_KEY，独立比对免密/轻量授权已启用")
+	} else {
+		log.Printf("[i] 未配置 IMMICH_COMPARE_API_KEY，独立比对访问需遵循 Immich 会话或 API Key 鉴权")
+	}
+	go func() {
+		probeURL := strings.TrimSuffix(cfg.MLPredictURL, "/predict") + "/ping"
+		client := http.Client{Timeout: 3 * time.Second}
+		resp, err := client.Get(probeURL)
+		if err != nil {
+			log.Printf("[!] 提示: 机器学习服务探针暂未响应 (%s)，推理可能正在冷启动或尚未就绪: %v", probeURL, err)
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode >= 500 {
+			log.Printf("[!] 警告: 机器学习服务探针返回异常状态码 %d (%s)", resp.StatusCode, probeURL)
+		} else {
+			log.Printf("[✓] 机器学习服务探针正常: %s", probeURL)
+		}
+	}()
+	return nil
+}
+
 func initDB() {
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
@@ -262,7 +332,13 @@ func initDB() {
 	if err != nil {
 		log.Printf("[!] 警告: 数据库初始化连接失败: %v", err)
 	} else {
-		log.Printf("[✓] PostgreSQL 连接池就绪: %s@%s:%s/%s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName)
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := dbPool.Ping(pingCtx); err != nil {
+			pingCancel()
+			log.Fatalf("[✗] 致命错误: 无法连通 PostgreSQL 数据库 (%s:%s/%s): %v", cfg.DBHost, cfg.DBPort, cfg.DBName, err)
+		}
+		pingCancel()
+		log.Printf("[✓] PostgreSQL 连接池就绪且探测连通: %s@%s:%s/%s", cfg.DBUser, cfg.DBHost, cfg.DBPort, cfg.DBName)
 		go func() {
 			warmCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
@@ -841,6 +917,9 @@ func parseKeyList(raw string) []string {
 
 func main() {
 	initConfig()
+	if err := validateConfig(); err != nil {
+		log.Fatalf("[✗] 致命错误: 环境变量配置校验失败: %v", err)
+	}
 	initDB()
 
 	// 从嵌入的 FS 中提取 dist 目录作为静态根
