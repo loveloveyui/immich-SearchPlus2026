@@ -1,0 +1,42 @@
+# 依赖与临时缓存
+node_modules/
+**/node_modules/
+.npm/
+
+# 构建产物与导出二进制
+dist/
+**/dist/
+release/
+server
+*.exe
+
+# 本地环境变量与私密凭据
+.env
+*.patch
+.vscode/
+.idea/
+
+# 操作系统与工具缓存
+.DS_Store
+Thumbs.db
+
+# 子工程冗余模板文件
+frontend/README.md
+frontend/.gitignore
+
+# 冗余或未使用的模板静态资产
+frontend/src/assets/vue.svg
+frontend/src/assets/vite.svg
+frontend/src/components/HelloWorld.vue
+
+# 后端误生成的临时 npm 锁定文件
+backend/package-lock.json
+
+# 本地旧版 Windows 构建批处理
+build.bat
+patcher.js
+patch.txt
+
+
+
+.patch_backups/

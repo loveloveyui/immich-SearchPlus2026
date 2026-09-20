@@ -1,0 +1,20 @@
+{
+  "name": "Immich 视觉检索中心",
+  "short_name": "MineSearch",
+  "description": "基于 Immich 的以图搜图与人脸智能检索系统",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0b0d",
+  "theme_color": "#0a0b0d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
