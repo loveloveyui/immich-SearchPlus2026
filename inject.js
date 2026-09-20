@@ -1,11 +1,11 @@
 (function () {
   if (window.self !== window.top) return;
-  if (window.__IMMICH_MINE_SEARCH_INJECTED__) return;
-  window.__IMMICH_MINE_SEARCH_INJECTED__ = true;
+  if (window.__IMMICH_SEARCHPLUS2026_INJECTED__) return;
+  window.__IMMICH_SEARCHPLUS2026_INJECTED__ = true;
 
   function showDebugToast(msg) {
     const toast = document.createElement("div");
-    toast.id = "immich-mine-search-toast";
+    toast.id = "immich-searchplus2026-toast";
     toast.style.cssText =
       "position:fixed;top:18px;right:18px;z-index:999999;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);color:#ffffff;background:#10b981;transition:opacity 0.3s ease;pointer-events:none;";
     toast.innerHTML = `<span>✓</span><span>${msg}</span>`;
@@ -44,8 +44,8 @@
       "display:none;width:100%;height:100%;flex:1;overflow:hidden;position:relative;z-index:1;";
 
     iframeEl = document.createElement("iframe");
-    iframeEl.id = "immich-mine-search-iframe";
-    iframeEl.src = `/mine-search/?embedded=true&theme=${isDark ? "dark" : "light"}`;
+    iframeEl.id = "immich-searchplus2026-iframe";
+    iframeEl.src = `/searchplus2026/?embedded=true&theme=${isDark ? "dark" : "light"}`;
     iframeEl.style.cssText =
       "width:100%;height:100%;border:none;display:block;background:transparent;";
 
@@ -156,11 +156,11 @@
 
     searchInputs.forEach((input) => {
       const form = input.closest("form") || input.parentElement;
-      if (!form || form.querySelector(".immich-mine-search-btn")) return;
+      if (!form || form.querySelector(".immich-searchplus2026-btn")) return;
 
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "immich-mine-search-btn";
+      btn.className = "immich-searchplus2026-btn";
       btn.title = "智能图像与人脸检索";
       function updateBtnPosition() {
         const hasValue = !!(input && input.value && input.value.trim().length > 0);
@@ -190,13 +190,13 @@
       form.appendChild(btn);
     });
 
-    const oldFab = document.getElementById("immich-mine-search-fab");
+    const oldFab = document.getElementById("immich-searchplus2026-fab");
     if (oldFab) oldFab.remove();
 
     const mobileSearch = document.getElementById("search-button");
-    if (mobileSearch && mobileSearch.parentNode && !document.getElementById("immich-mine-search-mobile-btn")) {
+    if (mobileSearch && mobileSearch.parentNode && !document.getElementById("immich-searchplus2026-mobile-btn")) {
       const mBtn = document.createElement("button");
-      mBtn.id = "immich-mine-search-mobile-btn";
+      mBtn.id = "immich-searchplus2026-mobile-btn";
       mBtn.type = "button";
       mBtn.className =
         "flex items-center justify-center gap-1 font-medium outline-offset-2 transition-colors focus-visible:outline-2 cursor-pointer rounded-full text-base h-10 w-10 outline-dark text-dark not-disabled:hover:bg-dark/10 sm:hidden";

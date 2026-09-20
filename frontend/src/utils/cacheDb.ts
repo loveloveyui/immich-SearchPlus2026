@@ -1,4 +1,4 @@
-const DB_NAME = "immich_mine_search_db";
+const DB_NAME = "immich_searchplus2026_db";
 const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBDatabase> | null = null;

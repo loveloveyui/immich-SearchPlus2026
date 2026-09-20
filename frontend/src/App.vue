@@ -1221,7 +1221,7 @@ onUnmounted(() => {
             <path d="M12 12H3.5c0-2.4 1.9-4.3 4.3-4.3S12 9.6 12 12z" fill="currentColor" fill-opacity="0.25" />
             <circle cx="12" cy="12" r="2" fill="currentColor" />
           </svg>
-          <span>Immich 智能图像检索</span>
+          <span>SearchPlus2026 智能检索</span>
           <span class="badge-engine embedded-badge">Build {{ buildTime }}</span>
         </div>
         <button
@@ -1246,7 +1246,7 @@ onUnmounted(() => {
           </div>
           <div class="brand-text">
             <div class="title-row">
-              <h1 class="brand-title" @click="handleTitleClick" style="cursor: pointer; user-select: none;" title="10秒内连续点击5次开启调色">{{ isStandaloneCompare ? "Immich 人脸比对中心" : "Immich 视觉检索中心" }}</h1>
+              <h1 class="brand-title" @click="handleTitleClick" style="cursor: pointer; user-select: none;" title="10秒内连续点击5次开启调色">{{ isStandaloneCompare ? "SearchPlus2026 人脸比对中心" : "SearchPlus2026" }}</h1>
               <span class="badge-engine">Build {{ buildTime }}</span>
             </div>
             <p class="brand-subtitle">

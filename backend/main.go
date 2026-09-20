@@ -1260,6 +1260,8 @@ func main() {
 			"inject.js",
 			"../inject.js",
 			"mine-search/inject.js",
+			"SearchPlus2026/inject.js",
+			"searchplus2026/inject.js",
 		}
 		var content []byte
 		var err error
@@ -1283,24 +1285,26 @@ func main() {
 	}
 
 	r.GET("/inject.js", handleInjectJS)
-	r.GET("/mine-search/inject.js", handleInjectJS)
+	r.GET("/searchplus2026/inject.js", handleInjectJS)
+	r.GET("/SearchPlus2026/inject.js", handleInjectJS)
 
 	registerRoutes(&r.RouterGroup)
-	subGroup := r.Group("/mine-search")
-	registerRoutes(subGroup)
+	registerRoutes(r.Group("/searchplus2026"))
+	registerRoutes(r.Group("/SearchPlus2026"))
 
 	// 静态文件与 SPA 路由兜底分发
 	r.NoRoute(func(c *gin.Context) {
 		reqPath := c.Request.URL.Path
 
 		// 1. 访问 /mine-search 时补齐末尾斜杠，确保前端相对路径 (./assets/...) 正常解析
-		if reqPath == "/mine-search" {
-			c.Redirect(http.StatusMovedPermanently, "/mine-search/")
+		if reqPath == "/searchplus2026" || reqPath == "/SearchPlus2026" {
+			c.Redirect(http.StatusMovedPermanently, reqPath+"/")
 			return
 		}
 
 		// 2. 剥除子路径前缀
-		relPath := strings.TrimPrefix(reqPath, "/mine-search")
+		relPath := strings.TrimPrefix(reqPath, "/searchplus2026")
+		relPath = strings.TrimPrefix(relPath, "/SearchPlus2026")
 		relPath = strings.TrimPrefix(relPath, "/")
 
 		// 3. API 路由未命中直接 404
@@ -1326,7 +1330,7 @@ func main() {
 	})
 
 	port := getEnv("PORT", "1880")
-	log.Printf("[✓] Immich 视觉检索服务已就绪，正在监听 :%s (适配子路径 /mine-search)...", port)
+	log.Printf("[✓] Immich SearchPlus2026 服务已就绪，正在监听 :%s (适配子路径 /searchplus2026)...", port)
 	if err := r.Run(":" + port); err != nil {
 		log.Fatalf("启动失败: %v", err)
 	}

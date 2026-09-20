@@ -1,4 +1,4 @@
-const CACHE_NAME = "mine-search-pwa-v1";
+const CACHE_NAME = "searchplus2026-pwa-v1";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
