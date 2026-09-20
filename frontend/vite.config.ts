@@ -1,9 +1,8 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
-const now = new Date();
-const pad = (n: number) => n.toString().padStart(2, "0");
-const buildTime = `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+const buildTime = new Date().toISOString()
+
 
 export default defineConfig({
   plugins: [vue()],

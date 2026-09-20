@@ -4,14 +4,10 @@
 FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 
-# 安装时区支持，双重保障构建时间戳准确
-RUN apk --no-cache add tzdata
-ENV TZ=Asia/Shanghai
-
 COPY frontend/package*.json ./
 RUN --mount=type=cache,target=/root/.npm npm install
 
-# 源码层缓存穿透参数（日常开发留空，强制刷新时间戳时传入动态值）
+# 源码层缓存穿透参数
 ARG REBUILD_DATE=""
 
 COPY frontend/ ./
@@ -33,9 +29,13 @@ COPY backend/ ./
 COPY --from=frontend-builder /app/backend/dist ./dist
 COPY inject.js ./dist/inject.js
 
+# 自适应多架构构建 (支持 amd64, arm64 等)
+ARG TARGETOS
+ARG TARGETARCH
+
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
     go build -trimpath -ldflags="-s -w" -o /app/server .
 
 # ==========================================
@@ -50,10 +50,14 @@ COPY --from=backend-builder /app/server /server
 FROM alpine:3.20 AS runner
 WORKDIR /app
 
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata && \
+    adduser -D -u 10001 appuser
 
-# 拷贝阶段 2 生成的单二进制 (产物自带 0755 权限，无需 RUN chmod 避免镜像体积膨胀)
+# 默认运行时区对齐东八区 (容器运行时仍可通过 Compose 的 TZ 覆盖)
+ENV TZ=Asia/Shanghai
+
 COPY --from=backend-builder /app/server /app/server
 
+USER appuser
 EXPOSE 1880
 ENTRYPOINT ["/app/server"]

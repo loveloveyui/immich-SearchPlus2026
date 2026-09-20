@@ -91,7 +91,18 @@ type SearchMode = "clip" | "face" | "compare";
 type SliderType = "threshold" | "topK" | "minScore";
 
 declare const __BUILD_TIME__: string;
-const buildTime = typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "Dev";
+const formatBuildTime = (raw: string) => {
+  if (!raw || raw === "Dev") return "Dev";
+  try {
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw;
+    const pad = (n: number) => n.toString().padStart(2, "0");
+    return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } catch {
+    return raw;
+  }
+};
+const buildTime = typeof __BUILD_TIME__ !== "undefined" ? formatBuildTime(__BUILD_TIME__) : "Dev";
 
 // 客户端硬件加速轻量化降采样
 async function convertHeicToJpeg(file: File): Promise<File> {
