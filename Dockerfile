@@ -11,6 +11,11 @@ RUN --mount=type=cache,target=/root/.npm npm install
 ARG REBUILD_DATE=""
 
 COPY frontend/ ./
+# 核心联动：将 backend 目录作为缓存失效感知点
+# 一旦 backend/ 下的任何文件（如 main.go）发生变动，本层哈希改变，
+# Docker 会自动废弃下一行的构建缓存，强制执行 npm run build 刷新时间戳！
+COPY backend/ ./backend_trigger/
+
 RUN npm run build
 
 # ==========================================
