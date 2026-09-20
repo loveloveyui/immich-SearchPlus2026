@@ -1,0 +1,48 @@
+# ==============================================================================
+# Immich Mine Search (SearchPlus) Sidecar 部署模板
+#
+# 使用方法（二选一）：
+# 1. 【推荐】将下方 immich-searchplus2026 节点复制并粘贴到你 Immich 的 docker-compose.yml 的 services 节点下。
+# 2. 如果拉取源码本地自构建，可在当前目录直接运行 docker compose up -d。
+# ==============================================================================
+
+services:
+  immich-searchplus2026:
+    # 方式 A：直接拉取 GitHub/Docker Hub 预构建镜像（开源发布后使用）
+    # image: ghcr.io/<你的用户名>/immich-searchplus2026:latest
+
+    # 方式 B：使用源码本地构建镜像
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: immich_searchplus2026
+    restart: always
+    ports:
+      - "1880:1880"
+    environment:
+      # 1. 数据库直连 (自动复用 Immich .env 中的变量，默认账号为 postgres)
+      - IMMICH_DB_HOST=database
+      - IMMICH_DB_PORT=5432
+      - IMMICH_DB_NAME=${DB_DATABASE_NAME:-immich}
+      - IMMICH_DB_USER=${DB_USERNAME:-postgres}
+      - IMMICH_DB_PASSWORD=${DB_PASSWORD}
+
+      # 2. 内部微服务通信 (直接使用 Compose 内部服务名)
+      - IMMICH_SERVER_URL=http://immich-server:2283
+      - IMMICH_ML_URL=http://immich-machine-learning:3003/predict
+
+      # 3. 机器学习模型配置 (必须与 Immich 当前生效的模型名称完全一致)
+      - IMMICH_CLIP_MODEL=nllb-clip-large-siglip__v1
+      - IMMICH_FACE_MODEL=antelopev2
+
+      # 4. 独立人脸比对密钥 (选填，配置后可通过 ?app=compare 免登使用)
+      # - IMMICH_COMPARE_API_KEY=your_custom_compare_key
+
+      # 5. 容器时区
+      - TZ=Asia/Shanghai
+
+    depends_on:
+      - database
+      - immich-machine-learning
+      - immich-server
