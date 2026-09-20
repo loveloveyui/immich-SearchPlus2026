@@ -41,13 +41,13 @@ ARG TARGETARCH
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-    go build -trimpath -ldflags="-s -w" -o /app/server .
+    go build -trimpath -ldflags="-s -w" -o /app/immich-SearchPlus2026 .
 
 # ==========================================
 # 阶段 3：二进制专用导出层 (专供提取到宿主机，避开软链接报错)
 # ==========================================
 FROM scratch AS export-stage
-COPY --from=backend-builder /app/server /server
+COPY --from=backend-builder /app/immich-SearchPlus2026 /immich-SearchPlus2026
 
 # ==========================================
 # 阶段 4：最终运行镜像 (保留在最后，默认构建产物)
@@ -61,8 +61,8 @@ RUN apk --no-cache add ca-certificates tzdata && \
 # 默认运行时区对齐东八区 (容器运行时仍可通过 Compose 的 TZ 覆盖)
 ENV TZ=Asia/Shanghai
 
-COPY --from=backend-builder /app/server /app/server
+COPY --from=backend-builder /app/immich-SearchPlus2026 /app/immich-SearchPlus2026
 
 USER appuser
 EXPOSE 1880
-ENTRYPOINT ["/app/server"]
+ENTRYPOINT ["/app/immich-SearchPlus2026"]
