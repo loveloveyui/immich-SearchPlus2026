@@ -6,8 +6,9 @@
 2. 以用户选择包含人脸的图片查找相册内的对应人，不用将图片上传到图库。
 3. 附加功能还有对比两个人脸的相似度，不用将图片上传到图库。
 
-【图片占位】
-【图片占位】
+![图搜图界面预览](docs/images/similar-search-example.jpg)
+
+![人脸搜人界面预览](docs/images/face-search-example1.jpg)
 
 ## 重要说明
 
