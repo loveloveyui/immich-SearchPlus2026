@@ -1,1 +1,63 @@
-随便用
+MIT License
+
+Copyright (c) 2026 [Your Name or GitHub Username]
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+CRITICAL NOTICES, ASSUMPTION OF RISK & DISCLAIMERS / 关键声明、风险自担与免责条款
+================================================================================
+
+1. COMPLETE ASSUMPTION OF RISK BY USER / 使用者完全风险自担声明:
+   THIS SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE". UNDER NO CIRCUMSTANCES 
+   SHALL THE AUTHOR(S), MAINTAINER(S), OR CONTRIBUTOR(S) BE HELD LIABLE FOR ANY 
+   DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, 
+   INCLUDING BUT NOT LIMITED TO:
+   - LOSS OF DATA, CORRUPTION OF DATABASE, OR ACCIDENTAL DELETION OF PHOTOS/VIDEOS;
+   - HARDWARE OVERHEATING, SYSTEM FREEZES, GPU/CPU FAILURES, OR OS CRASHES;
+   - PRIVACY OR SECURITY BREACHES CAUSED BY NETWORK EXPOSURE OR MISCONFIGURATION;
+   - SERVICE DOWNTIME OR INCOMPATIBILITY ARISING FROM UPSTREAM IMMICH UPDATES.
+   BY INSTALLING, RUNNING, OR USING THIS SOFTWARE, YOU EXPRESSLY ACKNOWLEDGE AND 
+   AGREE THAT ALL OPERATIONS ARE PERFORMED AT YOUR OWN INDEPENDENT DISCRETION AND 
+   RISK. YOU ASSUME 100% OF THE RESPONSIBILITY AND ALL CONSEQUENCES THEREOF.
+   
+   【中文声明】：本软件按“现状”与“现有”基础提供。在任何情况下，作者、维护者或贡献者
+   均不对因安装、运行、配置或使用本软件所产生的任何直接、间接、偶然或连带损失承担任何责任，
+   包括但不限于：数据丢失损坏、数据库损坏、照片误删、硬件超载/过热/故障、系统死机崩溃、
+   因网络暴露或配置不当导致的数据泄露、以及因 Immich 上游大版本升级引发的任何故障。
+   凡安装或使用本项目者，即视为已完全理解并承诺：一切运行风险与后果均由使用者本人独立、
+   完全自行承担！
+
+2. Non-Commercial Model License (InsightFace) / 人脸模型非商业性使用限制:
+   This project interfaces with facial recognition models (e.g. AntelopeV2 and 
+   Buffalo series by InsightFace). These models are governed by their original 
+   upstream non-commercial research licenses. This software is strictly intended 
+   for personal, self-hosted, and non-commercial research use. Commercial use is 
+   strictly prohibited under upstream terms.
+
+3. Third-Party Brand & Trademark Disclaimer / 非官方独立声明:
+   "Immich" and related logos/trademarks belong to their respective owners. 
+   Immich SearchPlus2026 is an independent community extension and is NOT 
+   affiliated with, maintained by, or endorsed by the official Immich team.
+
+4. Direct Database Access / 数据库只读直连声明:
+   This software reads data from Immich's PostgreSQL database (pgvector tables). 
+   Although queries are strictly read-only SELECT statements, the user must 
+   maintain adequate and regular backups (following the 3-2-1 backup strategy) 
+   prior to deployment.
