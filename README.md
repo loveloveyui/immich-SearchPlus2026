@@ -1,5 +1,13 @@
 > 为自建 Immich 相册打造的以图搜图、人脸搜人、人脸相似度 1:1 比对的伴生服务。
 
+<div align="right">
+**简体中文** | [English](./README_EN.md)
+</div>
+> [!TIP]
+> English documentation is available at [README_EN.md](./README_EN.md).
+
+---
+
 ## 这个项目让immich支持
 
 1. 以用户选择的图片搜索相册内相似的图片，不用将图片上传到图库。
