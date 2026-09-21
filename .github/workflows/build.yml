@@ -102,8 +102,10 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
+          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: ./release/${{ matrix.artifact }}
+          retention-days: 1
+          overwrite: true
 
   # ==========================================
   # 任务 3：创建 GitHub Release 并挂载所有二进制附件
@@ -116,11 +118,14 @@ jobs:
       - name: Download all built artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: binaries-*
           path: ./release-files
           merge-multiple: true
 
       - name: List Artifacts
-        run: ls -lh ./release-files
+        run: |
+          echo "=== 待发布的二进制产物清单 ==="
+          ls -lh ./release-files
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
