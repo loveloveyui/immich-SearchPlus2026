@@ -1,8 +1,22 @@
-# Immich SearchPlus2026 🔍
-
 > 为自建 Immich 相册打造的以图搜图、人脸搜人、人脸相似度 1:1 比对的伴生服务。
 
-_Disclaimer: This is an unofficial, community-driven sidecar extension. It is not affiliated with, endorsed by, or sponsored by the official Immich team._
+## 这个项目让immich支持
+
+1. 以用户选择的图片搜索相册内相似的图片，不用将图片上传到图库。
+2. 以用户选择包含人脸的图片查找相册内的对应人，不用将图片上传到图库。
+3. 附加功能还有对比两个人脸的相似度，不用将图片上传到图库。
+
+【图片占位】
+【图片占位】
+
+## 重要说明
+
+```
+使用的前提条件：你现在能正常使用immich的机器学习检索照片
+工作原理：直连 immich的数据库与Immich机器学习服务，实现以图搜图（CLIP）、人脸多目标检索与 1:1 特征比对。
+使用方式： 可作为独立网页使用也可以内嵌到immich的网页当中
+开发环境：以immich 3.2.2为开发基础
+```
 
 ---
 
@@ -18,7 +32,50 @@ _Disclaimer: This is an unofficial, community-driven sidecar extension. It is no
 
 ## 🚀 部署方式（二选一）
 
-### 方式一：Docker Compose 容器部署（推荐）
+### 方式一：直接运行独立 Linux x86_64 二进制
+
+#### 1.下载二进制
+
+下载二进制到一个文件夹
+
+#### 2.创建环境变量文件.env 在同文件夹下
+
+在同一目录下创建 `.env` 文件并填入你的 Immich 实际地址与数据库密码：
+
+```
+# =================================================================
+# Immich 基础设施连接配置 (Docker Compose 内部服务名直连)
+# =================================================================
+IMMICH_SERVER_URL=http://immich-server:2283
+IMMICH_ML_URL=http://immich-machine-learning:3003/predict
+IMMICH_DB_HOST=database
+IMMICH_DB_PORT=5432
+IMMICH_DB_NAME=immich
+IMMICH_DB_USER=postgres
+IMMICH_DB_PASSWORD=your_database_password_here
+
+# =================================================================
+# 机器学习模型配置 (必须与 Immich 主服务正在运行的模型名称保持完全一致)
+# =================================================================
+IMMICH_CLIP_MODEL=nllb-clip-large-siglip__v1
+IMMICH_FACE_MODEL=antelopev2
+
+# =================================================================
+# 服务运行参数与安全密钥
+# =================================================================
+PORT=1880
+
+# 人脸 1:1 比对专属独立授权密钥 (选填，设置后可通过 ?app=compare 独立访问)
+# IMMICH_COMPARE_API_KEY=your_custom_secret_key_here
+
+
+```
+
+也支持config.json config.yaml，已提供example文件，可通过 `-c` 指定配置文件。
+
+### 3.运行这个二进制文件测试
+
+### 方式二：Docker Compose 容器部署 （这个说明目前占位用，不要使用）
 
 将以下服务节点追加到你 Immich 现有的 `docker-compose.yml` 中的 `services:` 节点下：
 
@@ -37,17 +94,17 @@ services:
       - "1880:1880"
     environment:
       # 数据库连接 (直接复用 Immich 环境变量)
-      - IMMICH_DB_HOST=database
-      - IMMICH_DB_PORT=5432
-      - IMMICH_DB_NAME=${DB_DATABASE_NAME:-immich}
-      - IMMICH_DB_USER=${DB_USERNAME:-postgres}
-      - IMMICH_DB_PASSWORD=${DB_PASSWORD}
+      - IMMICH_DB_HOST=database #数据库地址
+      - IMMICH_DB_PORT=5432 #数据库端口
+      - IMMICH_DB_NAME=${DB_DATABASE_NAME:-immich} #数据库名称
+      - IMMICH_DB_USER=${DB_USERNAME:-postgres} #数据库用户名
+      - IMMICH_DB_PASSWORD=${DB_PASSWORD} #数据库密码
       # Immich 核心微服务通信 (内部服务名解析)
-      - IMMICH_SERVER_URL=http://immich-server:2283
-      - IMMICH_ML_URL=http://immich-machine-learning:3003/predict
+      - IMMICH_SERVER_URL=http://immich-server:2283 #immich服务地址
+      - IMMICH_ML_URL=http://immich-machine-learning:3003/predict #机器学习服务地址
       # 机器学习模型 (必须与当前 Immich 后台实际运行的模型名称严格一致)
-      - IMMICH_CLIP_MODEL=nllb-clip-large-siglip__v1
-      - IMMICH_FACE_MODEL=antelopev2
+      - IMMICH_CLIP_MODEL=nllb-clip-large-siglip__v1 #以文搜图的模型名
+      - IMMICH_FACE_MODEL=antelopev2 #人脸识别的模型名
       # 人脸 1:1 比对独立免密访问密钥 (选填，设置后可凭此 Key 免相册登录使用)
       # - IMMICH_COMPARE_API_KEY=your_custom_secret_key
       - TZ=Asia/Shanghai
@@ -65,84 +122,9 @@ docker compose up -d immich-searchplus2026
 
 ---
 
-### 方式二：直接运行独立 Linux x86_64 二进制
+## 🌐实现将本功能附加到immich官方网页
 
-适用于不想起 Docker 容器、运行在轻量 LXC 容器或直接在宿主机裸跑的用户。本项目所有前端 UI 静态资源与胶水脚本均已打包嵌入单一二进制中，无任何外部文件依赖。
-
-#### 1. 下载并提权
-
-从 GitHub [Releases 页面](../../releases) 下载最新的 `server` 二进制文件，放置到目标目录（如 `/opt/searchplus2026`）：
-
-```bash
-mkdir -p /opt/searchplus2026 && cd /opt/searchplus2026
-# 下载二进制并赋予执行权限
-chmod +x server
-```
-
-#### 2. 创建环境变量配置文件
-
-在同一目录下创建 `.env` 文件并填入你的 Immich 实际地址与数据库密码：
-
-```bash
-cat << 'EOF' > .env
-PORT=1880
-# 宿主机运行时连接地址（若 Immich 容器端口映射到宿主机，填写对应 IP/端口）
-IMMICH_SERVER_URL=[http://127.0.0.1:2283](http://127.0.0.1:2283)
-IMMICH_ML_URL=[http://127.0.0.1:3003/predict](http://127.0.0.1:3003/predict)
-IMMICH_DB_HOST=127.0.0.1
-IMMICH_DB_PORT=5432
-IMMICH_DB_NAME=immich
-IMMICH_DB_USER=postgres
-IMMICH_DB_PASSWORD=your_actual_db_password
-IMMICH_CLIP_MODEL=nllb-clip-large-siglip__v1
-IMMICH_FACE_MODEL=antelopev2
-TZ=Asia/Shanghai
-EOF
-```
-
-#### 3. 命令行临时测试启动
-
-```bash
-export $(cat .env | xargs) && ./server
-```
-
-控制台输出 `[✓] Immich SearchPlus2026 服务已就绪，正在监听 :1880` 即表示启动成功。
-
-#### 4. 配置 systemd 后台常驻与开机自启（生产推荐）
-
-创建守护服务配置文件 `/etc/systemd/system/searchplus2026.service`：
-
-```ini
-[Unit]
-Description=Immich SearchPlus2026 Service
-After=network.target docker.service
-
-[Service]
-Type=simple
-User=root
-WorkingDirectory=/opt/searchplus2026
-EnvironmentFile=/opt/searchplus2026/.env
-ExecStart=/opt/searchplus2026/server
-Restart=always
-RestartSec=5s
-
-[Install]
-WantedBy=multi-user.target
-```
-
-激活并启动服务：
-
-```bash
-systemctl daemon-reload
-systemctl enable --now searchplus2026
-
-# 查看运行状态
-systemctl status searchplus2026
-```
-
----
-
-## 🌐 反向代理与脚本注入 (以 Nginx Proxy Manager 为例)
+### 反向代理与脚本注入 (以 Nginx Proxy Manager 为例)
 
 无论采用 Docker 还是独立二进制运行，只需在 NPM 对应 Immich 域名的 **Advanced**（高级规则）中加入以下内容，即可实现视口接管与胶水脚本自动加载：
 
@@ -150,10 +132,9 @@ systemctl status searchplus2026
 # 1. 禁用上游 gzip 压缩，确保 sub_filter 拦截替换生效
 proxy_set_header Accept-Encoding "";
 
-# 2. 转发 SearchPlus2026 搜图与比对接口
-# (若使用 Docker 部署填容器名:1880；若使用二进制裸跑填 127.0.0.1:1880)
+# 2. 转发 SearchPlus2026 搜图与比对接口到https://你的immich域名/searchplus2026/
 location /searchplus2026/ {
-    proxy_pass http://immich-searchplus2026:1880/searchplus2026/;
+    proxy_pass http://immich-SearchPlus2026的服务地址:1880/;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -166,7 +147,41 @@ sub_filter_once on;
 sub_filter_types text/html;
 ```
 
+### ⚠️你还可以把这个inject.js下载下来放到油猴脚本中运行，只需要添加油猴脚本专用的头部
+
+### 💡这个脚本还帮immich 3.2.2修复了后退网页时网页被锁定无法滚轮滚动的bug，还有后退键不后退到当前预览图在时间线上所在位置的bug。
+
 ---
+
+## 编译
+
+### 一.用docker编译
+
+#### 1.编译成docker镜像
+
+在Dockerfile同目录下执行
+
+```
+docker build -t immich-searchplus2026:latest .
+```
+
+#### 2.编译输出二进制
+
+在Dockerfile同目录下执行
+
+```
+DOCKER_BUILDKIT=1 docker build --target export-stage --output type=local,dest=./release .
+```
+
+编译到指定系统架构：（以windows amd64为例）
+
+```
+DOCKER_BUILDKIT=1 docker buildx build --target export-stage --output type=local,dest=./release --build-arg TARGETOS=windows --build-arg TARGETARCH=amd64 .
+```
+
+输出的文件在./release里
+
+### 二.不用docker也能编译
 
 ## 📌 注意事项与常见问题
 
