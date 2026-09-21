@@ -1,4 +1,5 @@
 > A companion service built for self-hosted Immich albums, featuring reverse image search, face search, and 1:1 face similarity comparison.
+
 > [!NOTE]
 > This documentation was translated by AI and may contain inaccuracies or omissions. Corrections and improvements via Pull Requests are warmly welcome!
 
