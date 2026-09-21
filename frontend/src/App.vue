@@ -1239,8 +1239,10 @@ onUnmounted(() => {
             <path d="M12 12H3.5c0-2.4 1.9-4.3 4.3-4.3S12 9.6 12 12z" fill="currentColor" fill-opacity="0.25" />
             <circle cx="12" cy="12" r="2" fill="currentColor" />
           </svg>
-          <span>SearchPlus2026 智能检索</span>
-          <span class="badge-engine embedded-badge">Build {{ buildTime }}</span>
+          <div class="embedded-title-col">
+            <span class="embedded-title-text">SearchPlus2026 智能检索</span>
+            <span class="badge-engine embedded-badge">Build {{ buildTime }}</span>
+          </div>
         </div>
         <button
           class="embedded-close-btn"
@@ -1434,7 +1436,7 @@ onUnmounted(() => {
         </div>
 
           <div class="drop-title">
-            点击选择图片、拖入文件，或直接在页面按 <kbd>Ctrl + V</kbd> 粘贴
+            点击选择图片、拖入文件，或在页面按 <span class="shortcut-tip"><kbd>Ctrl + V</kbd> 粘贴</span>
           </div>
           <div class="drop-desc">
             {{
@@ -2332,7 +2334,7 @@ body,
 .embedded-nav-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   margin-bottom: 14px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--md-outline-variant);
@@ -2344,6 +2346,11 @@ body,
   color: var(--md-primary);
   font-size: 13px;
   font-weight: 600;
+  min-width: 0;
+  white-space: nowrap;
+}
+.embedded-title-group span {
+  white-space: nowrap;
 }
 .embedded-badge {
   font-size: 10px;
@@ -2354,6 +2361,31 @@ body,
   font-weight: 500;
   letter-spacing: 0.2px;
   border: 1px solid var(--md-outline-variant);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.embedded-title-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.embedded-title-text {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.badge-engine.embedded-badge {
+  display: inline-flex !important;
+  align-self: flex-start;
+  font-size: 9px !important;
+  line-height: 1.2;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 .windmill-icon {
   display: block;
@@ -2367,6 +2399,7 @@ body,
 .embedded-close-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   background: var(--md-surface-container);
   border: 1px solid var(--md-outline-variant);
@@ -2377,6 +2410,8 @@ body,
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .embedded-close-btn:hover {
   background: var(--md-surface-container-high);
@@ -2562,6 +2597,14 @@ body,
 .mode-chips {
   display: flex;
   gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0;
+}
+.mode-chips::-webkit-scrollbar {
+  display: none;
 }
 .mode-chip {
   display: inline-flex;
@@ -2576,6 +2619,8 @@ body,
   font-weight: 500;
   cursor: pointer;
   min-height: 34px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .mode-chip.selected {
   background: var(--md-primary);
@@ -2671,6 +2716,10 @@ kbd {
   border-radius: 4px;
   border: 1px solid var(--md-outline-variant);
   font-size: 10px;
+  white-space: nowrap;
+}
+.shortcut-tip {
+  white-space: nowrap;
 }
 .drop-desc {
   font-size: 11px;
@@ -3763,6 +3812,36 @@ html:not(.dark) .card-media::before {
 @media (max-width: 640px) {
   .app-wrapper {
     padding: 12px 8px 30px;
+  }
+  .app-wrapper.is-embedded {
+    padding: 8px 8px 24px !important;
+  }
+  .embedded-badge {
+    display: none !important;
+  }
+  .embedded-title-group {
+    font-size: 12px;
+    gap: 6px;
+  }
+  .embedded-close-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  .mode-chips {
+    justify-content: flex-start;
+  }
+  .mode-chip {
+    padding: 5px 10px;
+    font-size: 11px;
+    min-height: 30px;
+  }
+  .drop-title {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .drop-desc {
+    font-size: 10px;
+    line-height: 1.4;
   }
   .app-header {
     flex-direction: column;
