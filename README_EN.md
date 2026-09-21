@@ -3,8 +3,11 @@
 > This documentation was translated by AI and may contain inaccuracies or omissions. Corrections and improvements via Pull Requests are warmly welcome!
 
 <div align="right">
+
 [简体中文](./README.md) | **English**
+
 </div>
+
 > [!TIP]
 > 中文文档请参见 [README.md](./README.md)。
 

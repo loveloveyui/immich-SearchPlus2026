@@ -1,8 +1,11 @@
 > 为自建 Immich 相册打造的以图搜图、人脸搜人、人脸相似度 1:1 比对的伴生服务。
 
 <div align="right">
+
 **简体中文** | [English](./README_EN.md)
+
 </div>
+
 > [!TIP]
 > English documentation is available at [README_EN.md](./README_EN.md).
 
