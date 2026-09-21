@@ -1,4 +1,4 @@
-name: Build and Publish
+name: Build, Publish Docker and Release Binaries
 
 on:
   push:
@@ -6,13 +6,17 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
-jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
+permissions:
+  contents: write
+  packages: write
 
+jobs:
+  # ==========================================
+  # 任务 1：构建并推送多架构 Docker 运行镜像至 GHCR
+  # ==========================================
+  build-and-push-docker:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,19 +51,71 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Export standalone binary
-        run: |
-          mkdir -p release
-          docker buildx build --target export-stage --output type=local,dest=./release .
-          chmod +x ./release/immich-SearchPlus2026*
+  # ==========================================
+  # 任务 2：交叉编译全平台独立二进制 (仅在推送 Tag 时执行)
+  # ==========================================
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+            artifact: immich-SearchPlus2026-linux-amd64
+          - os: linux
+            arch: arm64
+            artifact: immich-SearchPlus2026-linux-arm64
+          - os: windows
+            arch: amd64
+            artifact: immich-SearchPlus2026-windows-amd64.exe
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Create Release and Upload Binary
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Export Binary for ${{ matrix.os }}/${{ matrix.arch }}
+        run: |
+          mkdir -p ./release
+          docker buildx build \
+            --target export-stage \
+            --output type=local,dest=./release \
+            --build-arg TARGETOS=${{ matrix.os }} \
+            --build-arg TARGETARCH=${{ matrix.arch }} \
+            .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ./release/${{ matrix.artifact }}
+
+  # ==========================================
+  # 任务 3：创建 GitHub Release 并挂载所有二进制附件
+  # ==========================================
+  publish-release:
+    name: Create GitHub Release
+    needs: [build-and-push-docker, build-binaries]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./release-files
+          merge-multiple: true
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./release/immich-SearchPlus2026*
+          files: ./release-files/*
           generate_release_notes: true
+          draft: false
+          prerelease: false
