@@ -1,0 +1,13 @@
+{
+  "port": "1880",
+  "immich_server_url": "http://immich-server:2283",
+  "immich_ml_url": "http://immich-machine-learning:3003/predict",
+  "immich_db_host": "database",
+  "immich_db_port": "5432",
+  "immich_db_name": "immich",
+  "immich_db_user": "postgres",
+  "immich_db_password": "your_database_password_here",
+  "immich_clip_model": "nllb-clip-large-siglip__v1",
+  "immich_face_model": "antelopev2",
+  "immich_compare_api_key": ""
+}

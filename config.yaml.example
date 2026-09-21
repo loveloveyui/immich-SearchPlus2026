@@ -1,0 +1,24 @@
+# =================================================================
+# SearchPlus2026 配置文件 (可重命名为 config.yaml 放置于程序所在目录)
+# =================================================================
+
+# 服务运行端口
+port: "1880"
+
+# Immich 基础设施直连配置
+immich_server_url: "http://immich-server:2283"
+immich_ml_url: "http://immich-machine-learning:3003/predict"
+
+# PostgreSQL 数据库只读连接配置
+immich_db_host: "database"
+immich_db_port: "5432"
+immich_db_name: "immich"
+immich_db_user: "postgres"
+immich_db_password: "your_database_password_here"
+
+# 机器学习模型配置 (必须与 Immich 主服务保持完全一致)
+immich_clip_model: "nllb-clip-large-siglip__v1"
+immich_face_model: "antelopev2"
+
+# 人脸 1:1 比对专属独立访问密钥 (选填)
+# immich_compare_api_key: "your_custom_secret_key_here"

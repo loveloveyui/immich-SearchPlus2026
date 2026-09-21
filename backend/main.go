@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -81,8 +82,258 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func getExeDir() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return "."
+	}
+	if realPath, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = realPath
+	}
+	return filepath.Dir(exe)
+}
+
+func getCustomConfigPath() string {
+	for i := 1; i < len(os.Args); i++ {
+		arg := os.Args[i]
+		if (arg == "-c" || arg == "-config" || arg == "--config") && i+1 < len(os.Args) {
+			return os.Args[i+1]
+		}
+		if strings.HasPrefix(arg, "-c=") {
+			return strings.TrimPrefix(arg, "-c=")
+		}
+		if strings.HasPrefix(arg, "-config=") {
+			return strings.TrimPrefix(arg, "-config=")
+		}
+		if strings.HasPrefix(arg, "--config=") {
+			return strings.TrimPrefix(arg, "--config=")
+		}
+	}
+	return ""
+}
+
+func findConfigFile() (string, bool) {
+	custom := getCustomConfigPath()
+	if custom != "" {
+		if fi, err := os.Stat(custom); err == nil && !fi.IsDir() {
+			return custom, true
+		}
+		exeCustom := filepath.Join(getExeDir(), custom)
+		if fi, err := os.Stat(exeCustom); err == nil && !fi.IsDir() {
+			return exeCustom, true
+		}
+		log.Fatalf("[✗] 致命错误: 命令行指定的配置文件不存在: %s", custom)
+	}
+
+	exeDir := getExeDir()
+	candidates := []string{
+		filepath.Join(exeDir, "config.json"),
+		filepath.Join(exeDir, "config.yaml"),
+		filepath.Join(exeDir, "config.yml"),
+		filepath.Join(exeDir, ".env"),
+		"config.json",
+		"config.yaml",
+		"config.yml",
+		".env",
+	}
+	for _, p := range candidates {
+		if fi, err := os.Stat(p); err == nil && !fi.IsDir() {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+func flattenJSONMap(prefix string, m map[string]interface{}, out map[string]string) {
+	for k, v := range m {
+		key := k
+		if prefix != "" {
+			key = prefix + "_" + k
+		}
+		switch val := v.(type) {
+		case map[string]interface{}:
+			flattenJSONMap(key, val, out)
+		case []interface{}:
+			strs := make([]string, 0, len(val))
+			for _, item := range val {
+				strs = append(strs, fmt.Sprint(item))
+			}
+			out[key] = strings.Join(strs, ",")
+		default:
+			if val != nil {
+				out[key] = fmt.Sprint(val)
+			}
+		}
+	}
+}
+
+func parseJSONConfig(data []byte) map[string]string {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		log.Printf("[!] JSON 配置文件解析失败: %v", err)
+		return nil
+	}
+	out := make(map[string]string)
+	flattenJSONMap("", raw, out)
+	return out
+}
+
+func stripYAMLComment(s string) string {
+	inSingle := false
+	inDouble := false
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '\'':
+			if !inDouble {
+				inSingle = !inSingle
+			}
+		case '"':
+			if !inSingle {
+				inDouble = !inDouble
+			}
+		case '#':
+			if !inSingle && !inDouble {
+				return strings.TrimSpace(s[:i])
+			}
+		}
+	}
+	return s
+}
+
+func parseYAMLConfig(data []byte) map[string]string {
+	out := make(map[string]string)
+	lines := strings.Split(string(data), "\n")
+	type yNode struct {
+		indent int
+		key    string
+	}
+	var stack []yNode
+
+	for _, line := range lines {
+		line = strings.TrimRight(line, "\r")
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+		clean := stripYAMLComment(trimmed)
+		if clean == "" {
+			continue
+		}
+		idx := strings.Index(clean, ":")
+		if idx == -1 {
+			continue
+		}
+		k := strings.TrimSpace(clean[:idx])
+		v := strings.TrimSpace(clean[idx+1:])
+
+		for len(stack) > 0 && stack[len(stack)-1].indent >= indent {
+			stack = stack[:len(stack)-1]
+		}
+
+		if v == "" {
+			stack = append(stack, yNode{indent: indent, key: k})
+		} else {
+			val := strings.Trim(v, `"'`)
+			fullKey := k
+			if len(stack) > 0 {
+				parts := make([]string, 0, len(stack)+1)
+				for _, s := range stack {
+					parts = append(parts, s.key)
+				}
+				parts = append(parts, k)
+				fullKey = strings.Join(parts, "_")
+			}
+			out[fullKey] = val
+		}
+	}
+	return out
+}
+
+func parseDotEnvConfig(data []byte) map[string]string {
+	out := make(map[string]string)
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(strings.TrimRight(line, "\r"))
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			k := strings.TrimSpace(parts[0])
+			v := strings.Trim(strings.TrimSpace(parts[1]), `"'`)
+			out[k] = v
+		}
+	}
+	return out
+}
+
+func applyConfigMap(kv map[string]string) {
+	for k, v := range kv {
+		norm := strings.ToUpper(strings.ReplaceAll(k, "-", "_"))
+		if os.Getenv(norm) == "" {
+			os.Setenv(norm, v)
+		}
+		var alias string
+		switch norm {
+		case "SERVER_URL":
+			alias = "IMMICH_SERVER_URL"
+		case "ML_URL":
+			alias = "IMMICH_ML_URL"
+		case "DB_HOST", "DATABASE_HOST":
+			alias = "IMMICH_DB_HOST"
+		case "DB_PORT", "DATABASE_PORT":
+			alias = "IMMICH_DB_PORT"
+		case "DB_NAME", "DATABASE_NAME":
+			alias = "IMMICH_DB_NAME"
+		case "DB_USER", "DATABASE_USER":
+			alias = "IMMICH_DB_USER"
+		case "DB_PASSWORD", "DATABASE_PASSWORD":
+			alias = "IMMICH_DB_PASSWORD"
+		case "CLIP_MODEL":
+			alias = "IMMICH_CLIP_MODEL"
+		case "FACE_MODEL":
+			alias = "IMMICH_FACE_MODEL"
+		case "COMPARE_API_KEY":
+			alias = "IMMICH_COMPARE_API_KEY"
+		}
+		if alias != "" && os.Getenv(alias) == "" {
+			os.Setenv(alias, v)
+		}
+	}
+}
+
+func loadConfigFile() {
+	path, ok := findConfigFile()
+	if !ok {
+		log.Printf("[i] 未检测到配置文件，完全依据系统环境变量运行")
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		log.Printf("[!] 读取配置文件失败 (%s): %v", path, err)
+		return
+	}
+	var kv map[string]string
+	lower := strings.ToLower(path)
+	if strings.HasSuffix(lower, ".json") {
+		kv = parseJSONConfig(data)
+	} else if strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") {
+		kv = parseYAMLConfig(data)
+	} else {
+		kv = parseDotEnvConfig(data)
+	}
+	if len(kv) > 0 {
+		applyConfigMap(kv)
+		log.Printf("[✓] 已成功载入配置文件: %s (共注入 %d 项参数，系统环境变量优先)", path, len(kv))
+	}
+}
+
 func loadDotEnv() {
-	candidates := []string{".env", "../.env"}
+	loadConfigFile()
+}
+
+func disabledOldEnv() {
+	candidates := []string{}
 	for _, p := range candidates {
 		data, err := os.ReadFile(p)
 		if err != nil {
@@ -110,7 +361,7 @@ func loadDotEnv() {
 }
 
 func initConfig() {
-	loadDotEnv()
+	loadConfigFile()
 	cfg = Config{
 		MLPredictURL:    getEnv("IMMICH_ML_URL", "http://immich-machine-learning:3003/predict"),
 		ImmichServerURL: strings.TrimRight(getEnv("IMMICH_SERVER_URL", "http://immich-server:2283"), "/"),
