@@ -26,10 +26,10 @@
 >
 > ## Important Notes
 >
-> Prerequisites: Your Immich machine learning photo search is currently working properly.
-> How it works: Directly connects to Immich's database and Immich machine learning service to achieve reverse image search > (CLIP), multi-target face search, and 1:1 feature comparison.
-> Usage: Can be used as a standalone web page or embedded directly into Immich's web interface.
-> Development environment: Built and tested based on Immich 3.2.2.
+> 1. Prerequisites: Your Immich machine learning photo search is currently working properly.
+> 2. How it works: Directly connects to Immich's database and Immich machine learning service to achieve reverse image search > (CLIP), multi-target face search, and 1:1 feature comparison.
+> 3. Usage: Can be used as a standalone web page or embedded directly into Immich's web interface.
+> 4. Development environment: Built and tested based on Immich 3.2.2.
 
 > [!WARNING]
 > **Disclaimer & Assumption of Risk**
