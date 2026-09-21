@@ -122,10 +122,28 @@ async function convertHeicToJpeg(file: File): Promise<File> {
 
 async function computeImageHash(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
-  const hashBuffer = await window.crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hashBuffer))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  if (typeof window !== "undefined" && window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === "function") {
+    try {
+      const hashBuffer = await window.crypto.subtle.digest("SHA-256", buffer);
+      return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } catch (_) {}
+  }
+  const bytes = new Uint8Array(buffer);
+  let h1 = 0xdeadbeef ^ bytes.length;
+  let h2 = 0x41c64e6d ^ bytes.length;
+  const step = Math.max(1, Math.floor(bytes.length / 2048));
+  for (let i = 0; i < bytes.length; i += step) {
+    const byte = bytes[i];
+    h1 = Math.imul(h1 ^ byte, 2654435761);
+    h2 = Math.imul(h2 ^ byte, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  const p1 = (h1 >>> 0).toString(16).padStart(8, "0");
+  const p2 = (h2 >>> 0).toString(16).padStart(8, "0");
+  return `${p1}${p2}${bytes.length.toString(16)}`;
 }
 
 const clientSearchCache = new Map<string, SearchResponse>();
