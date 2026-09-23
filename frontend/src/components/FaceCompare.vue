@@ -426,7 +426,7 @@ onUnmounted(() => {
         <input
           ref="inputRefA"
           type="file"
-          accept="image/*"
+          accept="image/*, application/octet-stream"
           class="hidden-file"
           @change="
             ($event.target as HTMLInputElement).files?.[0] &&
@@ -508,7 +508,7 @@ onUnmounted(() => {
         <input
           ref="inputRefB"
           type="file"
-          accept="image/*"
+          accept="image/*, application/octet-stream"
           class="hidden-file"
           @change="
             ($event.target as HTMLInputElement).files?.[0] &&

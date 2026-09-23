@@ -1713,7 +1713,7 @@ onUnmounted(() => {
         <input
           ref="fileInputRef"
           type="file"
-          accept="image/*"
+          accept="image/*, application/octet-stream"
           class="hidden-input"
           @change="onFileSelect"
         />
