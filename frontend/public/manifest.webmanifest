@@ -2,6 +2,19 @@
   "name": "Immich SearchPlus2026",
   "short_name": "SearchPlus2026",
   "description": "基于 Immich 的以图搜图与人脸智能检索系统 (SearchPlus2026)",
+  "share_target": {
+    "action": "./?share-target=1",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "media",
+          "accept": ["image/*"]
+        }
+      ]
+    }
+  },
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

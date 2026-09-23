@@ -459,6 +459,209 @@ const hasAuth = computed(
 // 运行时状态
 const originalImageFile = ref<File | null>(null);
 const activeQueryFile = ref<File | null>(null);
+const showShareChoiceModal = ref<boolean>(false);
+const sharedIncomingFile = ref<File | null>(null);
+const sharedIncomingPreviewUrl = ref<string>("");
+
+async function processSharedFile(rawFile: File) {
+  if (!rawFile) return;
+  // 关键：对三星相册分享的 HEIC 图片执行解码转码，彻底避免 <img> 裂图
+  const file = await convertHeicToJpeg(rawFile);
+  sharedIncomingFile.value = file;
+  if (sharedIncomingPreviewUrl.value) {
+    URL.revokeObjectURL(sharedIncomingPreviewUrl.value);
+  }
+  sharedIncomingPreviewUrl.value = URL.createObjectURL(file);
+  showShareChoiceModal.value = true;
+}
+
+async function parseWtaItem(item: any): Promise<File | null> {
+  if (!item) return null;
+  if (item instanceof File) return item;
+  if (item instanceof Blob) {
+    return new File([item], (item as any).name || "shared.jpg", { type: item.type || "image/jpeg" });
+  }
+  if (typeof item === "string") {
+    try {
+      const parsed = JSON.parse(item);
+      return parseWtaItem(parsed);
+    } catch (_) {}
+  }
+
+  const name = item.name || "shared.jpg";
+  const mime = item.mimeType || item.type || "image/jpeg";
+
+  // 1. WebToApp 官方规范：<= 5MB 内联 dataUrl 字段
+  const dataUrl = item.dataUrl || item.base64 || item.data || item.content;
+  if (dataUrl && typeof dataUrl === "string") {
+    try {
+      const formattedUrl = dataUrl.startsWith("data:")
+        ? dataUrl
+        : `data:${mime};base64,${dataUrl}`;
+      const res = await fetch(formattedUrl);
+      const blob = await res.blob();
+      return new File([blob], name, { type: mime || blob.type || "image/jpeg" });
+    } catch (_) {}
+  }
+
+  // 2. WebToApp 官方规范：> 5MB 设备本地文件 fileUrl 字段
+  const fileUrl = item.fileUrl || item.url || item.uri || item.path;
+  if (fileUrl && typeof fileUrl === "string") {
+    try {
+      const res = await fetch(fileUrl);
+      const blob = await res.blob();
+      return new File([blob], name, { type: mime || blob.type || "image/jpeg" });
+    } catch (_) {}
+  }
+
+  // 3. 原生方法兜底
+  if (typeof item.getFile === "function") {
+    try {
+      const f = await item.getFile();
+      if (f instanceof File) return f;
+    } catch (_) {}
+  }
+  if (typeof item.blob === "function") {
+    try {
+      const b = await item.blob();
+      if (b) return new File([b], name, { type: mime || b.type || "image/jpeg" });
+    } catch (_) {}
+  }
+  if (typeof item.arrayBuffer === "function") {
+    try {
+      const buf = await item.arrayBuffer();
+      if (buf) return new File([buf], name, { type: mime || "image/jpeg" });
+    } catch (_) {}
+  }
+
+  return null;
+}
+
+async function handleWtaSharedList(rawList: any) {
+  if (!rawList) return;
+  let list: any[] = [];
+  if (typeof rawList === "string") {
+    try {
+      const parsed = JSON.parse(rawList);
+      list = Array.isArray(parsed) ? parsed : [parsed];
+    } catch (_) {
+      list = [rawList];
+    }
+  } else if (Array.isArray(rawList)) {
+    list = rawList;
+  } else {
+    list = [rawList];
+  }
+
+  for (const raw of list) {
+    const file = await parseWtaItem(raw);
+    if (file && (file.type.startsWith("image/") || file.name.match(/\.(jpe?g|png|webp|gif|heic|heif)$/i))) {
+      await processSharedFile(file);
+      break; // 收到多图严格只取第一张
+    }
+  }
+}
+
+function initWtaShareBridge() {
+  const consumeInbox = async () => {
+    const wta = (window as any).WTAShareInbox || (window as any).wtaShareInbox;
+    if (wta) {
+      try {
+        if (typeof wta.take === "function") {
+          const taken = await wta.take();
+          if (taken && (taken.length > 0 || (typeof taken === "string" && taken.trim().length > 0))) {
+            await handleWtaSharedList(taken);
+            return;
+          }
+        }
+        if (typeof wta.peek === "function") {
+          const peeked = await wta.peek();
+          if (peeked && peeked.length > 0) {
+            if (typeof wta.take === "function") await wta.take();
+            await handleWtaSharedList(peeked);
+            return;
+          }
+        }
+      } catch (_) {}
+    }
+  };
+
+  try {
+    const wta = (window as any).WTAShareInbox || (window as any).wtaShareInbox;
+    if (wta && typeof wta.onShare === "function") {
+      wta.onShare((items: any) => {
+        handleWtaSharedList(items);
+      });
+    }
+  } catch (_) {}
+
+  const onShareEvent = (e: any) => {
+    const items = e?.detail?.items || e?.detail?.files || e?.detail;
+    if (items) {
+      handleWtaSharedList(items);
+    } else {
+      consumeInbox();
+    }
+  };
+
+  window.addEventListener("wta:share", onShareEvent);
+  document.addEventListener("wta:share", onShareEvent);
+
+  consumeInbox();
+  let attempts = 0;
+  const timer = setInterval(() => {
+    attempts++;
+    consumeInbox();
+    try {
+      const wta = (window as any).WTAShareInbox || (window as any).wtaShareInbox;
+      if (wta && typeof wta.onShare === "function") {
+        wta.onShare((items: any) => {
+          handleWtaSharedList(items);
+        });
+      }
+    } catch (_) {}
+    if (attempts >= 20 || sharedIncomingFile.value) {
+      clearInterval(timer);
+    }
+  }, 100);
+}
+
+async function checkPwaSharedImage() {
+  if (typeof window === "undefined" || !("caches" in window)) return;
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("shared") === "1") {
+    url.searchParams.delete("shared");
+    window.history.replaceState(window.history.state, "", url.pathname + (url.search ? url.search : "") + url.hash);
+    try {
+      const cache = await caches.open("searchplus2026-share-cache");
+      const res = await cache.match("/_pwa_shared_media_");
+      if (res) {
+        const blob = await res.blob();
+        const filename = decodeURIComponent(res.headers.get("x-shared-name") || "shared.jpg");
+        await cache.delete("/_pwa_shared_media_");
+        const file = new File([blob], filename, { type: blob.type || "image/jpeg" });
+        await processSharedFile(file);
+      }
+    } catch {}
+  }
+}
+
+function applyShareChoice(mode: SearchMode) {
+  showShareChoiceModal.value = false;
+  if (!sharedIncomingFile.value) return;
+  searchMode.value = mode;
+  handleNewFile(sharedIncomingFile.value);
+  sharedIncomingFile.value = null;
+}
+
+function cancelShareChoice() {
+  showShareChoiceModal.value = false;
+  sharedIncomingFile.value = null;
+  if (sharedIncomingPreviewUrl.value) {
+    URL.revokeObjectURL(sharedIncomingPreviewUrl.value);
+    sharedIncomingPreviewUrl.value = "";
+  }
+}
 const selectedFaceIndex = ref<number>(-1);
 const isLoading = ref<boolean>(false);
 const errorMessage = ref<string>("");
@@ -1211,10 +1414,12 @@ onMounted(async () => {
       applyTheme(urlTheme === "dark" ? "dark" : "light");
     }
   }
+  initWtaShareBridge();
   await checkCookieAuth();
   if (!hasAuth.value) {
     showSettingsModal.value = true;
   }
+  await checkPwaSharedImage();
 });
 
 onUnmounted(() => {
@@ -2135,9 +2340,51 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+      </Transition>
+
+      <Transition name="modal-fade">
+      <div
+        v-if="showShareChoiceModal"
+        class="modal-backdrop"
+        @click="cancelShareChoice"
+      >
+        <div class="settings-modal share-choice-modal" @click.stop>
+          <div class="modal-header">
+            <div class="modal-title">📥 收到相册分享图片</div>
+            <button class="modal-close" @click="cancelShareChoice">
+              <CloseIcon :size="15" />
+            </button>
+          </div>
+          <div class="modal-body share-choice-body">
+            <div v-if="sharedIncomingPreviewUrl" class="share-preview-box">
+              <img :src="sharedIncomingPreviewUrl" class="share-preview-thumb" alt="分享图片预览" />
+            </div>
+            <p class="share-choice-desc">已获取分享的第一张图片，请选择检索类型：</p>
+            <div class="share-choice-actions">
+              <button class="share-action-card" @click="applyShareChoice('clip')">
+                <div class="share-action-icon"><ImageIcon :size="22" /></div>
+                <div class="share-action-info">
+                  <div class="share-action-title">以图搜图 (CLIP)</div>
+                  <div class="share-action-sub">检索构图、色彩与全图视觉语义</div>
+                </div>
+              </button>
+              <button class="share-action-card" @click="applyShareChoice('face')">
+                <div class="share-action-icon"><User :size="22" /></div>
+                <div class="share-action-info">
+                  <div class="share-action-title">搜人脸 (Face)</div>
+                  <div class="share-action-sub">提取面部特征并匹配人物相册</div>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="stage-btn" @click="cancelShareChoice">取消</button>
+          </div>
+        </div>
+      </div>
+      </Transition>
 
       <!-- Lightbox 弹窗 -->
-      </Transition>
       <Transition name="modal-fade" @after-enter="onLightboxAfterEnter">
       <div
         v-if="activeLightboxItem"
@@ -3893,5 +4140,72 @@ html:not(.dark) .card-media::before {
   .masonry-col {
     gap: 8px;
   }
+}
+
+.share-choice-modal {
+  max-width: 400px;
+}
+.share-choice-body {
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+.share-preview-box {
+  width: 100%;
+  max-height: 160px;
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 6px;
+}
+.share-preview-thumb {
+  max-height: 148px;
+  max-width: 100%;
+  border-radius: 6px;
+  object-fit: contain;
+}
+.share-choice-desc {
+  font-size: 12px;
+  color: var(--md-on-surface-variant);
+}
+.share-choice-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+.share-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--md-surface);
+  border: 1px solid var(--md-outline-variant);
+  border-radius: 12px;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+.share-action-card:hover {
+  border-color: var(--md-primary);
+  background: var(--md-primary-container);
+  transform: translateY(-1px);
+}
+.share-action-icon {
+  color: var(--md-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.share-action-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--md-on-surface);
+}
+.share-action-sub {
+  font-size: 10px;
+  color: var(--md-on-surface-variant);
+  margin-top: 1px;
 }
 </style>
