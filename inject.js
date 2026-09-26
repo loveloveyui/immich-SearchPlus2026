@@ -70,7 +70,19 @@
     sendToIframe({ type: "IMMICH_THEME_CHANGE", isDark });
   }
 
+  function shouldHideCameraIcon() {
+    if (!getMainElement()) return true;
+    if (window.location.pathname.startsWith("/search")) {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.toString().trim().length > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function openSearchView() {
+    if (shouldHideCameraIcon()) return;
     const main = getMainElement();
     if (!main || !main.parentElement) return;
     ensureDock();
@@ -150,6 +162,13 @@
   }
 
   function injectCameraIcon() {
+    if (shouldHideCameraIcon()) {
+      document
+        .querySelectorAll(".immich-searchplus2026-btn, #immich-searchplus2026-mobile-btn")
+        .forEach((el) => el.remove());
+      return;
+    }
+
     const searchInputs = document.querySelectorAll(
       '#main-search-bar, form[role="search"] input'
     );
@@ -462,6 +481,7 @@
       } catch (_) {}
     }
     fixImmichScrollLock();
+    injectCameraIcon();
   });
 
   document.addEventListener(
