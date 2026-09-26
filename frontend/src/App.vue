@@ -357,6 +357,39 @@ function getTimelineUrl(item: SearchResult): string {
   return `${window.location.origin}/photos?at=${encodeURIComponent(item.assetId)}`;
 }
 
+function openInExternalBrowser(url: string, e?: Event) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  if (!url) return;
+
+  const targetUrl = url.startsWith("http://") || url.startsWith("https://")
+    ? url
+    : `${window.location.origin}${url.startsWith("/") ? "" : "/"}${url}`;
+
+  // 判断是否处于 Android 原生容器内
+  const isAndroidApp =
+    typeof window !== "undefined" &&
+    (!!(window as any).WTAShareInbox ||
+     !!(window as any).wtaShareInbox ||
+     /Android/i.test(navigator.userAgent));
+
+  if (isAndroidApp) {
+    try {
+      const parsed = new URL(targetUrl);
+      const scheme = parsed.protocol.replace(":", "");
+      const hostAndPath = parsed.host + parsed.pathname + parsed.search + parsed.hash;
+      // 构造 Android 标准 BROWSABLE Intent，穿透 WebView 呼起系统默认浏览器
+      window.location.href = `intent://${hostAndPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;end`;
+      return;
+    } catch (_) {}
+  }
+
+  // PC 端或普通浏览器环境：常规新标签打开
+  window.open(targetUrl, "_blank", "noopener,noreferrer");
+}
+
 
 function onParentMessage(e: MessageEvent) {
   if (e.data?.type === "IMMICH_CLOSE_LIGHTBOX") {
@@ -537,6 +570,29 @@ async function parseWtaItem(item: any): Promise<File | null> {
   return null;
 }
 
+function isWtaItemConsumed(id: string): boolean {
+  if (!id) return false;
+  try {
+    const records = JSON.parse(localStorage.getItem("wta_consumed_share_ids") || "[]");
+    return Array.isArray(records) && records.includes(id);
+  } catch {
+    return false;
+  }
+}
+
+function markWtaItemConsumed(id: string) {
+  if (!id) return;
+  try {
+    let records = JSON.parse(localStorage.getItem("wta_consumed_share_ids") || "[]");
+    if (!Array.isArray(records)) records = [];
+    if (!records.includes(id)) {
+      records.push(id);
+      if (records.length > 50) records = records.slice(-50); // 仅保留最近 50 条
+      localStorage.setItem("wta_consumed_share_ids", JSON.stringify(records));
+    }
+  } catch {}
+}
+
 async function handleWtaSharedList(rawList: any) {
   if (!rawList) return;
   let list: any[] = [];
@@ -554,10 +610,20 @@ async function handleWtaSharedList(rawList: any) {
   }
 
   for (const raw of list) {
+    // 提取 WTA 专有唯一 ID 或特征指纹
+    const shareId = raw?.id || (raw?.name ? `${raw.name}_${raw.size}_${raw.mimeType || raw.type || ''}` : "");
+    if (shareId && isWtaItemConsumed(shareId)) {
+      // 该分享之前已弹出处理或取消过，忽略 WTA 启动时的重新投递
+      continue;
+    }
+
     const file = await parseWtaItem(raw);
     if (file && (file.type.startsWith("image/") || file.name.match(/\.(jpe?g|png|webp|gif|heic|heif)$/i))) {
+      if (shareId) {
+        markWtaItemConsumed(shareId);
+      }
       await processSharedFile(file);
-      break; // 收到多图严格只取第一张
+      break; // 严格只取第一张
     }
   }
 }
@@ -1960,8 +2026,8 @@ onUnmounted(() => {
                   target="_blank"
                   rel="noopener noreferrer"
                   class="card-jump-btn"
-                  title="在新网页中查看原生大图"
-                  @click.stop
+                  title="在手机浏览器中查看原生大图"
+                  @click.stop.prevent="openInExternalBrowser(getNativeViewerUrl(item), $event)"
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -2439,6 +2505,7 @@ onUnmounted(() => {
                 target="_blank"
                 rel="noopener noreferrer"
                 class="action-btn"
+                @click.prevent="openInExternalBrowser(getNativeViewerUrl(activeLightboxItem), $event)"
               >
                 <ExternalLink :size="13" />
                 <span>原生大图预览</span>
@@ -2448,6 +2515,7 @@ onUnmounted(() => {
                 target="_blank"
                 rel="noopener noreferrer"
                 class="action-btn timeline-btn"
+                @click.prevent="openInExternalBrowser(getTimelineUrl(activeLightboxItem), $event)"
               >
                 <Clock :size="13" />
                 <span>时间线位置</span>
